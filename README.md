@@ -67,11 +67,11 @@ Para manter o histórico do Git organizado, legível e profissional, utilizamos 
 ## 🔗 Links Úteis
 
 - [📁 Documentação (Google Drive)](https://drive.google.com/drive/folders/1R6l-Ds37L3nQVcgp1DjRTSLbiVdokVp7?usp=sharing)
-- [📊 Board do Projeto (GitHub Projects)](https://github.com/users/suc0thetonho/projects)
+- [📊 Board do Projeto (GitHub Projects)](https://github.com/users/suc0thetonho/projects/3)
 
 ## 📌 Acordos da Equipe
 
-- **Daily:** Todos os dias (10 minutos, foco em bloqueios).
+- **Daily:** de segunda a sexta (10 minutos, foco em bloqueios).
 - **Board é a fonte da verdade:** Se não está no board, não está sendo feito.
 - **Respeito ao WIP:** Não puxar tarefas além do limite combinado.
 - **Commits descritivos:** Seguir o padrão acima para facilitar o entendimento do histórico.
