@@ -91,6 +91,7 @@ npm test
 
 ## 🔗 Links Úteis
 
+- [📑 Especificação dos Endpoints da API (MVP)](./docs/api/endpoints-mvp.md)
 - [📁 Documentação (Google Drive)](https://drive.google.com/drive/folders/1R6l-Ds37L3nQVcgp1DjRTSLbiVdokVp7?usp=sharing)
 - [📊 Board do Projeto (GitHub Projects)](https://github.com/users/suc0thetonho/projects/3)
 
