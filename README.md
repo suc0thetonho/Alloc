@@ -64,6 +64,31 @@ Para manter o histórico do Git organizado, legível e profissional, utilizamos 
 4. **Escopo (opcional):** Se a mudança for específica de uma parte, coloque entre parênteses. Ex: `feat(auth): adiciona login com Google`.
 5. **Vincular à Issue:** Se o commit resolve uma tarefa do board, referencie a Issue no final. Ex: `fix: corrige erro de renderização (closes #12)`.
 
+## 🚀 Módulos do Sistema
+
+### 🖥️ Backend (API)
+O backend da aplicação está localizado no diretório [`backend/`](./backend) e foi desenvolvido utilizando **Node.js**, **TypeScript** e **Express**.
+
+Para instruções completas de execução local, testes e documentação dos endpoints, consulte o [README do Backend](./backend/README.md).
+
+**Comandos rápidos:**
+```bash
+# 1. Entrar na pasta do backend
+cd backend
+
+# 2. Instalar dependências
+npm install
+
+# 3. Copiar variáveis de ambiente
+cp .env.example .env
+
+# 4. Iniciar em modo de desenvolvimento
+npm run dev
+
+# 5. Executar suíte de testes
+npm test
+```
+
 ## 🔗 Links Úteis
 
 - [📁 Documentação (Google Drive)](https://drive.google.com/drive/folders/1R6l-Ds37L3nQVcgp1DjRTSLbiVdokVp7?usp=sharing)
