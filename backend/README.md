@@ -86,6 +86,13 @@ O servidor estará disponível em: `http://localhost:3000`
 
 ---
 
+## 📑 Especificação Completa da API
+
+A documentação detalhada de todos os endpoints do MVP (públicos e administrativos), contratos de requisição/resposta, matriz de permissões e regras de negócio está disponível em:
+👉 **[Especificação dos Endpoints do MVP](../docs/api/endpoints-mvp.md)**
+
+---
+
 ## 📡 Endpoints Disponíveis
 
 ### Verificação de Saúde (Health Check)
@@ -129,3 +136,4 @@ Para iniciar o servidor a partir do build de produção:
 ```bash
 npm start
 ```
+
