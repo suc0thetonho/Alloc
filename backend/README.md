@@ -117,6 +117,22 @@ A documentação detalhada de todos os endpoints do MVP (públicos e administrat
 
 ## 📡 Endpoints Disponíveis
 
+### Catálogo de Máquinas
+
+`GET /api/v1/machines` lista as máquinas ativas para o catálogo público.
+
+Parâmetros opcionais: `search`, `type`, `page` e `limit` (padrão `page=1` e
+`limit=12`). A resposta informa origem, total de unidades, unidades em
+manutenção, unidades disponíveis e `availableNow`.
+
+Exemplo:
+
+```bash
+curl "http://localhost:3000/api/v1/machines?type=retroescavadeira"
+```
+
+Quando não há registros, a API retorna `200` com `data: []` e `meta.total: 0`.
+
 ### Verificação de Saúde (Health Check)
 Verifica se o backend está ativo e respondendo adequadamente.
 
