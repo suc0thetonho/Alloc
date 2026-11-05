@@ -1,0 +1,61 @@
+Project Alloc_Link_Inicial {
+  database_type: 'PostgreSQL'
+  Note: 'Primeira versao: 4 tabelas, dados demonstrativos'
+}
+
+Table empresas {
+  id bigint [pk, increment]
+  nome varchar(120) [not null]
+  descricao text
+  telefone varchar(25)
+  whatsapp varchar(25)
+  cidade varchar(100)
+  estado char(2)
+  logo_url text
+  cor_principal char(7)
+  criado_em timestamptz
+}
+
+Table maquinas {
+  id bigint [pk, increment]
+  empresa_id bigint [not null, ref: > empresas.id]
+  nome varchar(120) [not null]
+  categoria varchar(80) [not null]
+  marca varchar(80) [not null]
+  modelo varchar(80) [not null]
+  finalidade text [not null]
+  descricao text
+  imagem_url text
+  origem varchar(12) [not null]
+  nome_parceiro varchar(120)
+  quantidade_total integer [not null]
+  quantidade_manutencao integer [not null]
+  ativo boolean [not null]
+  criado_em timestamptz
+}
+
+Table solicitacoes {
+  id bigint [pk, increment]
+  maquina_id bigint [not null, ref: > maquinas.id]
+  nome_cliente varchar(120) [not null]
+  telefone_cliente varchar(25) [not null]
+  local_servico varchar(160)
+  data_inicio date [not null]
+  data_fim date [not null]
+  quantidade integer [not null]
+  status varchar(12) [not null]
+  criado_em timestamptz
+}
+
+Table alocacoes {
+  id bigint [pk, increment]
+  maquina_id bigint [not null, ref: > maquinas.id]
+  solicitacao_id bigint [unique, ref: > solicitacoes.id]
+  nome_cliente varchar(120) [not null]
+  local_servico varchar(160)
+  data_inicio date [not null]
+  data_fim date [not null]
+  quantidade integer [not null]
+  status varchar(12) [not null]
+  criado_em timestamptz
+}
