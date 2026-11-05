@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Ilustração de retroescavadeira amarela">
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#243a2d"/><stop offset="1" stop-color="#14251b"/></linearGradient>
+  <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffd65c"/><stop offset="1" stop-color="#ecad20"/></linearGradient>
+</defs>
+<rect width="800" height="500" rx="36" fill="url(#sky)"/><circle cx="649" cy="100" r="53" fill="#ffb44f" opacity=".9"/>
+<path d="M0 357c120-44 200-15 310-54 119-42 222-16 490-19v216H0Z" fill="#334c39"/><path d="M0 392c196-39 360-20 530-51 113-21 188-9 270 8v151H0Z" fill="#253c2c"/><path d="M0 438c270-42 501-24 800-45v107H0Z" fill="#665038"/><ellipse cx="408" cy="422" rx="289" ry="22" fill="#1b241d" opacity=".25"/>
+<!-- rear digger arm -->
+<g stroke="#b6780c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M496 289 588 206 664 226" fill="none" stroke="#f9c639" stroke-width="34"/>
+<path d="M662 224 714 290" fill="none" stroke="#f9c639" stroke-width="25"/>
+<path d="m695 290 25 44 42-16-33-41Z" fill="#e29b1b" stroke-width="5"/>
+<path d="m535 257 37-24" stroke="#6f7583" stroke-width="10"/>
+</g>
+<!-- front bucket and arm -->
+<path d="m248 310-105 27-46 45" stroke="#c48c1b" stroke-width="42" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="m249 309-106 28-46 45" stroke="#ffcc45" stroke-width="29" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M72 373 31 370 16 411l55 27 43-22-16-35Z" fill="#dba030" stroke="#96671d" stroke-width="5"/>
+<!-- cabin -->
+<path d="m340 215 21-97h110l51 113-15 108H329Z" fill="#373e47" stroke="#2b323c" stroke-width="8"/><path d="m376 136-17 103h127l-28-103Z" fill="#b2e3ef" opacity=".94"/><path d="m433 139 18 106" stroke="#313b43" stroke-width="9"/><path d="m340 236h162v87H331Z" fill="url(#body)" stroke="#9b751c" stroke-width="5"/>
+<!-- tractor body -->
+<path d="m228 283 90-19 49 13 141 0 58 43-24 67H213l-22-53Z" fill="url(#body)" stroke="#ac7d1c" stroke-width="6"/><path d="M217 295h90l-21 41h-80Z" fill="#323b46"/><path d="M512 290h40l21 35h-61Z" fill="#f3bc30"/><rect x="315" y="282" width="75" height="13" rx="6" fill="#fce17e"/>
+<!-- wheels -->
+<g><circle cx="297" cy="383" r="73" fill="#2f3339"/><circle cx="297" cy="383" r="51" fill="#454950" stroke="#22272c" stroke-width="8"/><circle cx="297" cy="383" r="29" fill="#e7e8e4"/><circle cx="297" cy="383" r="12" fill="#9199a1"/>
+<circle cx="502" cy="387" r="55" fill="#2e3339"/><circle cx="502" cy="387" r="36" fill="#454950" stroke="#22272c" stroke-width="7"/><circle cx="502" cy="387" r="21" fill="#e7e8e4"/><circle cx="502" cy="387" r="8" fill="#9199a1"/></g>
+<path d="M340 276v-40" stroke="#2e353d" stroke-width="10"/><path d="M238 316h51" stroke="#373d42" stroke-width="9"/><rect x="500" y="315" width="27" height="11" rx="4" fill="#fff3cb"/>
+</svg>

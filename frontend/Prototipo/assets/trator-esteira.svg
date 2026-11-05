@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Ilustração de trator de esteira amarelo">
+<defs><linearGradient id="bg" x2=".8" y2="1"><stop stop-color="#263c35"/><stop offset="1" stop-color="#14251c"/></linearGradient><linearGradient id="yd" x2="0" y2="1"><stop stop-color="#ffe073"/><stop offset="1" stop-color="#f1b62a"/></linearGradient></defs>
+<rect width="800" height="500" rx="36" fill="url(#bg)"/><circle cx="644" cy="99" r="49" fill="#ffb34a"/><path d="M0 355c170-35 247-11 393-45 130-30 275-23 407-5v195H0Z" fill="#334a38"/><path d="M0 392c180-24 390-7 800-42v150H0Z" fill="#55442e"/><path d="M0 432c251-24 463-30 800-13v81H0Z" fill="#342b21"/><ellipse cx="390" cy="418" rx="302" ry="24" fill="#1a231c" opacity=".21"/>
+<!-- track -->
+<path d="M220 328h347c45 0 72 38 68 73-4 31-27 45-67 46H232c-39 0-64-25-64-56 0-33 18-62 52-63Z" fill="#30363b"/><path d="M235 345h330c32 0 48 23 48 47 0 22-18 40-49 40H234c-32 0-47-18-47-42 0-23 18-45 48-45Z" fill="#51565b" stroke="#777d80" stroke-width="4"/>
+<g fill="#c4c6bd" stroke="#343b40" stroke-width="8"><circle cx="242" cy="390" r="31"/><circle cx="328" cy="390" r="31"/><circle cx="411" cy="390" r="31"/><circle cx="493" cy="390" r="31"/><circle cx="574" cy="390" r="31"/></g>
+<!-- main body -->
+<path d="M240 277h337l-9 78H232Z" fill="url(#yd)" stroke="#a87911" stroke-width="7"/><path d="M257 281h63v37h-68Z" fill="#3b444e"/><rect x="502" y="279" width="58" height="45" fill="#f9ce59"/><path d="M323 278v-119h180l28 119Z" fill="#292f37" stroke="#272f37" stroke-width="8"/><path d="m345 176-3 97h160l-21-97Z" fill="#9ddef0"/><path d="M419 176v101" stroke="#333c45" stroke-width="11"/><path d="m318 163 21-16h146l16 16" fill="none" stroke="#edb226" stroke-width="12"/><rect x="543" y="216" width="29" height="68" rx="7" fill="#3b4145"/><rect x="544" y="201" width="27" height="21" rx="6" fill="#d3d5d7"/>
+<!-- blade front -->
+<path d="M153 259 89 291l14 133h57l34-118Z" fill="#ebac29" stroke="#90611a" stroke-width="9"/><path d="m176 308 90-25" stroke="#ffcf4c" stroke-width="24"/><path d="m157 335 103-19" stroke="#82878b" stroke-width="15"/><path d="M75 301h82l18 136H77Z" fill="#e1a131" stroke="#9b6a1e" stroke-width="6"/><path d="m70 437 107 0" stroke="#664d32" stroke-width="10"/>
+</svg>
