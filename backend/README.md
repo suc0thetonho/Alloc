@@ -10,6 +10,7 @@ Serviço de backend e API RESTful do projeto **Alloc**, desenvolvido em **Node.j
 - **Linguagem:** TypeScript
 - **Framework Web:** Express
 - **Configuração de Ambiente:** Dotenv
+- **Banco de Dados:** PostgreSQL via `pg` e pool de conexões
 - **Segurança & CORS:** CORS
 - **Testes Automatizados:** Vitest + Supertest
 - **Execução em Desenvolvimento:** tsx (hot-reload)
@@ -73,10 +74,31 @@ Configurações disponíveis:
 | `PORT` | `3000` | Porta em que o servidor irá escutar |
 | `NODE_ENV` | `development` | Ambiente (`development`, `production`, `test`) |
 | `CORS_ORIGIN` | `*` | Origens permitidas para requisições cross-origin |
+| `DATABASE_URL` | — | URL de conexão do PostgreSQL, obrigatória para os comandos do banco |
+| `DB_POOL_MAX` | `10` | Limite de conexões simultâneas do pool |
 
 > ⚠️ **Atenção:** O arquivo `.env` contém credenciais e configurações locais e **nunca deve ser versionado no Git**.
 
-### 4. Executar em modo de desenvolvimento
+### 4. Preparar o banco de dados
+
+O banco utilizado pelo projeto é PostgreSQL. Crie o banco `alloc_link` executando
+`database/Banco de Dados/banco de dados/00_criar_banco.sql` no banco de manutenção
+`postgres`. Depois de configurar `DATABASE_URL`, aplique o esquema inicial com:
+
+```bash
+npm run db:migrate
+```
+
+Para executar a consulta de persistência usada como teste de conexão:
+
+```bash
+npm run db:test
+```
+
+O backend também disponibiliza `GET /api/database/health`, que executa `SELECT 1` e
+retorna `200` quando o banco está acessível ou `503` quando a conexão falha.
+
+### 5. Executar em modo de desenvolvimento
 Inicia o servidor com hot-reload automático a cada alteração de código:
 ```bash
 npm run dev
