@@ -1,0 +1,52 @@
+
+/* =====================================
+   ALLOC LINK - TELA MEU PERFIL
+===================================== */
+
+/* Painel principal do formulário */
+.profile-settings-panel {
+    max-width: 780px;
+    padding: 30px;
+    border-radius: 18px;
+}
+
+/* Título do formulário */
+.profile-settings-panel h2 {
+    font-size: 21px;
+    font-weight: 750;
+    margin-bottom: 12px;
+}
+
+/* Texto explicativo */
+.profile-settings-note {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #829188;
+    margin-bottom: 25px;
+}
+
+/* Campos do formulário */
+.profile-settings-panel .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+}
+
+/* Área do botão salvar */
+.profile-settings-panel .form-foot {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+/* Responsividade */
+@media (max-width: 690px) {
+
+    .profile-settings-panel {
+        padding: 18px;
+    }
+
+    .profile-settings-panel .form-foot .btn {
+        width: 100%;
+    }
+}

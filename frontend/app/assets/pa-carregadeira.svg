@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Ilustração de pá carregadeira amarela">
+<defs><linearGradient id="b" x2=".8" y2="1"><stop stop-color="#263c30"/><stop offset="1" stop-color="#17271e"/></linearGradient><linearGradient id="y" x2="0" y2="1"><stop stop-color="#ffe06f"/><stop offset="1" stop-color="#f1b328"/></linearGradient></defs>
+<rect width="800" height="500" rx="36" fill="url(#b)"/><path d="M0 332c143-23 249 2 382-28 143-31 315-8 418 14v182H0Z" fill="#40513c"/><path d="M0 399c170-19 290-21 800-6v107H0Z" fill="#5d4930"/><path d="M0 444c270-28 510-14 800-9v65H0Z" fill="#3c3024"/><ellipse cx="413" cy="422" rx="277" ry="18" fill="#1b241e" opacity=".26"/>
+<!-- loader bucket -->
+<path d="M640 332h118l-26 86-124-6-7-28Z" fill="#d39319" stroke="#93631e" stroke-width="8"/><path d="m626 371 30-34" stroke="#5c5750" stroke-width="15"/><path d="M474 296 622 350" stroke="#9b7418" stroke-width="46" stroke-linecap="round"/><path d="M474 295 622 346" stroke="#ffd34d" stroke-width="31" stroke-linecap="round"/><path d="m506 323 104 61" stroke="#838992" stroke-width="13"/>
+<!-- cabin -->
+<path d="m306 186 105-6 43 129H275Z" fill="#2c353d" stroke="#222a31" stroke-width="8"/><path d="m319 198 83 0 28 102H291Z" fill="#b4e5ee"/><path d="M360 196v103" stroke="#34404a" stroke-width="12"/>
+<!-- body -->
+<path d="m198 301 106-17 173 12 84 40-24 63H184l-18-65Z" fill="url(#y)" stroke="#9a6b13" stroke-width="7"/><path d="M198 314h82v36h-93Z" fill="#303944"/><path d="m452 303 77 38" stroke="#f8d26a" stroke-width="17"/><g><circle cx="288" cy="385" r="70" fill="#2b2e31"/><circle cx="288" cy="385" r="48" fill="#55595d" stroke="#22272c" stroke-width="8"/><circle cx="288" cy="385" r="28" fill="#dbdfe0"/><circle cx="496" cy="387" r="65" fill="#2b2e31"/><circle cx="496" cy="387" r="43" fill="#55595d" stroke="#22272c" stroke-width="8"/><circle cx="496" cy="387" r="25" fill="#dbdfe0"/></g>
+</svg>

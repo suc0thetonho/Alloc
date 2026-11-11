@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#09120e">
+  <meta name="description" content="Área administrativa demonstrativa do Alloc Link.">
+  <base href="../">
+  <title>Administração | Alloc Link</title>
+  <link rel="icon" href="assets/logo-generica.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/style.css">
+  
+</head>
+<body data-app="admin" data-admin="true">
+  <div id="loginLayer" class="login-layer">
+    <div class="login-panel">
+    <div class="login-logo">Alloc<span>Link.</span></div><span class="eyebrow eyebrow-soft">PAINEL ADMINISTRATIVO</span><h1>Gerencie sua operação<br>em um só lugar.</h1><p>Entre no ambiente demonstrativo para administrar máquinas, pedidos e alocações.</p><form id="loginForm"><label class="field">E-mail <input type="email" name="email" value="admin@alloclink.demo" required autocomplete="username"></label><label class="field">Senha <input type="password" name="password" placeholder="Digite sua senha" required autocomplete="current-password"></label><button type="submit" class="btn btn-primary btn-block">Entrar no painel →</button></form><div class="demo-credentials"><b>Credenciais de demonstração</b><div>E-mail: <code>admin@alloclink.demo</code></div><div>Senha: <code>demo123</code></div></div><a href="admin/index.html" class="back-client">← Voltar ao catálogo público</a><small class="login-disclaimer">Acesso apenas ilustrativo. Não representa autenticação segura de produção.</small></div><div class="login-art"><span class="login-art-icon">✦</span><div class="login-art-title">Sua frota.<br><em>Sob controle.</em></div><div class="login-art-cards"><div><span>Máquinas</span><b>Gestão centralizada</b></div><div><span>Solicitações</span><b>Análise e aprovação</b></div><div><span>Agenda</span><b>Sem conflitos</b></div></div><span class="login-art-footer">ALLOC LINK / MVP 2026</span></div></div>
+  <div class="admin-shell" id="adminShell" hidden>
+    <aside class="sidebar" id="adminSidebar"><a class="sidebar-brand" href="admin/index.html"><span class="sidebar-logo">A</span><span>Alloc<span>Link.</span><small>Painel da empresa</small></span></a><div class="sidebar-section-label">MENU PRINCIPAL</div><nav id="adminNav" class="side-menu" aria-label="Navegação administrativa"><button class="side-link active" data-view="dashboard" type="button"><span data-sicon="dashboard"></span>Painel geral</button><button class="side-link" data-view="machines" type="button"><span data-sicon="machines"></span>Máquinas</button><button class="side-link" data-view="requests" type="button"><span data-sicon="requests"></span>Solicitações <span class="menu-count" id="pendingSidebar" hidden>0</span></button><button class="side-link" data-view="bookings" type="button"><span data-sicon="bookings"></span>Alocações</button></nav><div class="sidebar-section-label">CONFIGURAÇÕES</div><nav class="side-menu"><button
+        class="side-link"
+        data-view="profile"
+        type="button">
+        <span data-sicon="profile"></span>
+        Meu perfil
+    </button><button class="side-link" data-view="company" type="button"><span data-sicon="company"></span>Minha empresa</button><a class="side-link" href="admin/index.html" target="_blank" rel="noopener"><span data-sicon="public"></span>Ver portal do cliente <span class="side-external">↗</span></a></nav><div class="sidebar-bottom"><div class="sidebar-profile"><div class="profile-avatar">AD</div><span><b>Administrador</b><small>Ambiente demonstrativo</small></span></div><button class="side-logout" id="logoutBtn" type="button">Sair do painel ↗</button></div></aside>
+    <div class="admin-main"><header class="admin-topbar"><button class="only-mobile btn btn-icon" id="toggleSidebar" aria-label="Abrir menu">☰</button><div class="admin-breadcrumb"><span id="currentSection">Visão geral</span><span class="breadcrumb-sep">/</span><strong id="currentTitle">Painel geral</strong></div><div class="admin-top-actions"><span class="demo-pill"><span></span> Ambiente de demonstração</span><div class="admin-company-icon"><img data-company-logo src="assets/logo-atc-de-sales.png" alt="Logo da empresa"></div></div></header><main class="admin-page"><div id="adminContent" aria-live="polite"></div></main><footer class="admin-footer">Alloc Link MVP • Protótipo funcional com dados locais <span>Entrega planejada: 11/12/2026</span></footer></div>
+  </div>
+  <div class="modal-backdrop" id="adminModal" role="dialog" aria-modal="true" aria-label="Formulário administrativo" hidden><div class="modal-card admin-dialog"><button class="modal-close" type="button" data-admin-close aria-label="Fechar">×</button><div id="adminModalBody"></div></div></div>
+  <script src="assets/js/core.js"></script>
+
+  <script src="assets/js/profile.js"></script>
+
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
