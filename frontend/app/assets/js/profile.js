@@ -3,7 +3,7 @@
     "use strict";
 
     // Chave usada para salvar os dados de demonstração.
-    const STORAGE_KEY = "alloclink_profile_demo_v1";
+    const STORAGE_KEY = "alloclink_app_profile_sem_dados_v1";
 
     // Importa as funções que core.js disponibiliza.
     const A = window.Alloc;
@@ -11,8 +11,8 @@
     // 1. Busca os dados do perfil.
     function carregarPerfil() {
         const perfilPadrao = {
-            nome: "Administrador",
-            email: "admin@alloclink.demo",
+            nome: "",
+            email: "",
             telefone: ""
         };
 
@@ -59,7 +59,7 @@
                 .join("")
                 .toUpperCase();
 
-            avatar.textContent = iniciais || "AD";
+            avatar.textContent = iniciais || "-";
         }
     }
 
