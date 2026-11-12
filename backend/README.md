@@ -76,6 +76,8 @@ Configurações disponíveis:
 | `CORS_ORIGIN` | `*` | Origens permitidas para requisições cross-origin |
 | `DATABASE_URL` | — | URL de conexão do PostgreSQL, obrigatória para os comandos do banco |
 | `DB_POOL_MAX` | `10` | Limite de conexões simultâneas do pool |
+| `JWT_SECRET` | — | Segredo usado para assinar tokens administrativos; obrigatório e forte em produção |
+| `JWT_EXPIRES_IN_SECONDS` | `3600` | Validade do token administrativo |
 
 > ⚠️ **Atenção:** O arquivo `.env` contém credenciais e configurações locais e **nunca deve ser versionado no Git**.
 
@@ -146,6 +148,23 @@ Verifica se o backend está ativo e respondendo adequadamente.
   "uptime": 1.5729503,
   "environment": "development"
 }
+```
+
+### Autenticação administrativa
+
+O catálogo (`GET /api/v1/machines`) permanece público. As rotas em `/api/v1/admin` e
+`GET /api/v1/auth/me` exigem `Authorization: Bearer <token>`.
+
+O login é feito em `POST /api/v1/auth/login` com um usuário da tabela `usuarios`. A
+coluna `password_hash` usa scrypt; nenhuma senha em texto puro é persistida. O token
+é assinado com HMAC-SHA256 e pode ser invalidado por `POST /api/v1/auth/logout`.
+
+Para criar o primeiro administrador, gere um hash scrypt com a função
+`hashPassword` em `src/auth/password.ts` e insira apenas o hash no banco:
+
+```sql
+INSERT INTO usuarios (nome, email, password_hash)
+VALUES ('Administrador', 'admin@alloc.local', '<hash-scrypt>');
 ```
 
 ---
