@@ -167,6 +167,14 @@ INSERT INTO usuarios (nome, email, password_hash)
 VALUES ('Administrador', 'admin@alloc.local', '<hash-scrypt>');
 ```
 
+### Perfil da empresa
+
+`GET /api/v1/company` é público e retorna o perfil da única empresa configurada.
+`PATCH /api/v1/company` exige token administrativo e aceita `name`, `description`,
+`phone`, `whatsapp`, `city`, `state`, `logoUrl` e `primaryColor`. A logo é armazenada
+como URL HTTP/HTTPS; o upload binário pode ser conectado posteriormente a um storage
+de objetos sem alterar o contrato da API.
+
 ---
 
 ## 🧪 Testes Automatizados
