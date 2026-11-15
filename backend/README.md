@@ -10,6 +10,7 @@ Serviço de backend e API RESTful do projeto **Alloc**, desenvolvido em **Node.j
 - **Linguagem:** TypeScript
 - **Framework Web:** Express
 - **Configuração de Ambiente:** Dotenv
+- **Banco de Dados:** PostgreSQL via `pg` e pool de conexões
 - **Segurança & CORS:** CORS
 - **Testes Automatizados:** Vitest + Supertest
 - **Execução em Desenvolvimento:** tsx (hot-reload)
@@ -73,10 +74,33 @@ Configurações disponíveis:
 | `PORT` | `3000` | Porta em que o servidor irá escutar |
 | `NODE_ENV` | `development` | Ambiente (`development`, `production`, `test`) |
 | `CORS_ORIGIN` | `*` | Origens permitidas para requisições cross-origin |
+| `DATABASE_URL` | — | URL de conexão do PostgreSQL, obrigatória para os comandos do banco |
+| `DB_POOL_MAX` | `10` | Limite de conexões simultâneas do pool |
+| `JWT_SECRET` | — | Segredo usado para assinar tokens administrativos; obrigatório e forte em produção |
+| `JWT_EXPIRES_IN_SECONDS` | `3600` | Validade do token administrativo |
 
 > ⚠️ **Atenção:** O arquivo `.env` contém credenciais e configurações locais e **nunca deve ser versionado no Git**.
 
-### 4. Executar em modo de desenvolvimento
+### 4. Preparar o banco de dados
+
+O banco utilizado pelo projeto é PostgreSQL. Crie o banco `alloc_link` executando
+`database/Banco de Dados/banco de dados/00_criar_banco.sql` no banco de manutenção
+`postgres`. Depois de configurar `DATABASE_URL`, aplique o esquema inicial com:
+
+```bash
+npm run db:migrate
+```
+
+Para executar a consulta de persistência usada como teste de conexão:
+
+```bash
+npm run db:test
+```
+
+O backend também disponibiliza `GET /api/database/health`, que executa `SELECT 1` e
+retorna `200` quando o banco está acessível ou `503` quando a conexão falha.
+
+### 5. Executar em modo de desenvolvimento
 Inicia o servidor com hot-reload automático a cada alteração de código:
 ```bash
 npm run dev
@@ -95,6 +119,22 @@ A documentação detalhada de todos os endpoints do MVP (públicos e administrat
 
 ## 📡 Endpoints Disponíveis
 
+### Catálogo de Máquinas
+
+`GET /api/v1/machines` lista as máquinas ativas para o catálogo público.
+
+Parâmetros opcionais: `search`, `type`, `page` e `limit` (padrão `page=1` e
+`limit=12`). A resposta informa origem, total de unidades, unidades em
+manutenção, unidades disponíveis e `availableNow`.
+
+Exemplo:
+
+```bash
+curl "http://localhost:3000/api/v1/machines?type=retroescavadeira"
+```
+
+Quando não há registros, a API retorna `200` com `data: []` e `meta.total: 0`.
+
 ### Verificação de Saúde (Health Check)
 Verifica se o backend está ativo e respondendo adequadamente.
 
@@ -109,6 +149,31 @@ Verifica se o backend está ativo e respondendo adequadamente.
   "environment": "development"
 }
 ```
+
+### Autenticação administrativa
+
+O catálogo (`GET /api/v1/machines`) permanece público. As rotas em `/api/v1/admin` e
+`GET /api/v1/auth/me` exigem `Authorization: Bearer <token>`.
+
+O login é feito em `POST /api/v1/auth/login` com um usuário da tabela `usuarios`. A
+coluna `password_hash` usa scrypt; nenhuma senha em texto puro é persistida. O token
+é assinado com HMAC-SHA256 e pode ser invalidado por `POST /api/v1/auth/logout`.
+
+Para criar o primeiro administrador, gere um hash scrypt com a função
+`hashPassword` em `src/auth/password.ts` e insira apenas o hash no banco:
+
+```sql
+INSERT INTO usuarios (nome, email, password_hash)
+VALUES ('Administrador', 'admin@alloc.local', '<hash-scrypt>');
+```
+
+### Perfil da empresa
+
+`GET /api/v1/company` é público e retorna o perfil da única empresa configurada.
+`PATCH /api/v1/company` exige token administrativo e aceita `name`, `description`,
+`phone`, `whatsapp`, `city`, `state`, `logoUrl` e `primaryColor`. A logo é armazenada
+como URL HTTP/HTTPS; o upload binário pode ser conectado posteriormente a um storage
+de objetos sem alterar o contrato da API.
 
 ---
 
