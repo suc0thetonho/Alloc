@@ -6,7 +6,7 @@
 
 (function () {
     'use strict';
-
+    const isApiMode = () => window.AllocConfig?.mode === "api";
     // Armazenamento local
     const STORAGE_KEY = 'alloclink_app_demo_v1';
     const OLD_KEYS = [''];
@@ -167,6 +167,15 @@
     let cache;
 
     function load() {
+
+        if (isApiMode()) {
+            if (!cache) {
+                cache = normalize(seed());
+            }
+
+            return cache;
+        }
+
         if (cache) {
             return cache;
         }
@@ -225,6 +234,20 @@
     }
 
     function write(data) {
+
+        if (isApiMode()) {
+            console.error(
+                "O modo API não permite salvar diretamente no localStorage."
+            );
+
+            toast(
+                "Esta operação precisa ser salva pelo servidor.",
+                "error"
+            );
+
+            return false;
+        }
+
         cache = data;
 
         try {
@@ -250,18 +273,58 @@
 
 
     function receiveFromApi(partialData) {
+        if (!partialData || typeof partialData !== "object") {
+            throw new Error("Dados inválidos recebidos da API.");
+        }
+
+        for (const key of ["machines", "requests", "bookings"]) {
+            if (
+                key in partialData &&
+                !Array.isArray(partialData[key])
+            ) {
+                throw new Error(`O campo ${key} deve ser uma lista.`);
+            }
+        }
 
         const current = load();
 
-        cache = normalize({
+        const next = {
             ...current,
             ...partialData,
-
             company: {
                 ...current.company,
                 ...(partialData.company || {})
             }
+        };
+
+        // Padroniza identificadores.
+        next.machines.forEach(machine => {
+            machine.id = String(machine.id);
         });
+
+        next.requests.forEach(request => {
+            request.id = String(request.id);
+            request.machineId = String(request.machineId);
+
+            if (request.status === "aprovada") {
+                request.status = "aprovado";
+            }
+
+            if (request.status === "recusada") {
+                request.status = "recusado";
+            }
+        });
+
+        next.bookings.forEach(booking => {
+            booking.id = String(booking.id);
+            booking.machineId = String(booking.machineId);
+
+            if (booking.requestId != null) {
+                booking.requestId = String(booking.requestId);
+            }
+        });
+
+        cache = normalize(next);
 
         window.dispatchEvent(
             new Event("alloclink:change")
@@ -272,8 +335,15 @@
 
 
     function reset() {
+        if (isApiMode()) {
+            return false;
+        }
         cache = seed();
         write(cache);
+    }
+
+    function clearApiState() {
+        cache = normalize(seed());
     }
 
     /*
@@ -517,12 +587,24 @@
         const total = machineQty(m);
         const maint = maintenanceQty(m);
 
-        const used = currentUsage(m, state);
+        let used = currentUsage(m, state);
+        let free = Math.max(0, total - maint - used);
 
-        const free = Math.max(
-            0,
-            total - maint - used
-        );
+        if (
+            isApiMode() &&
+            m.availableToday != null &&
+            Number.isInteger(Number(m.availableToday))
+        ) {
+            free = Math.max(
+                0,
+                Math.min(total - maint, Number(m.availableToday))
+            );
+
+            used = Number.isInteger(Number(m.usedToday))
+                && m.usedToday != null
+                ? Math.max(0, Number(m.usedToday))
+                : Math.max(0, total - maint - free);
+        }
 
         const next = state.bookings
             .filter((b) => (
@@ -945,6 +1027,7 @@
         write,
         receiveFromApi,
         reset,
+        clearApiState,
         dayISO,
         brDate,
         rangesOverlap,

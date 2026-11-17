@@ -1,4 +1,3 @@
-
 /*
 ========================================================
 ALLOC LINK — PAINEL ADMINISTRATIVO
@@ -10,7 +9,96 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
 
     // Funções compartilhadas do core.js
     const A = window.Alloc;
+    const isApiMode = () => window.AllocConfig?.mode === "api";
 
+    let apiAuthenticated = false;
+    let operacaoApiEmAndamento = false;
+
+    // As rotas são propostas e precisam coincidir com o Backend.
+    const api = () => {
+        if (!window.AllocApi) {
+            throw new Error("Carregue services/api.js antes de admin.js.");
+        }
+        return window.AllocApi;
+    };
+
+    async function recarregarDadosApi() {
+        if (!isApiMode()) return A.load();
+
+        const [company, machines, requests, bookings] =
+            await Promise.all([
+                api().getCompany(),
+                api().getMachines(),
+                api().getRequests(),
+                api().getBookings()
+            ]);
+
+        if (!Array.isArray(machines) ||
+            !Array.isArray(requests) ||
+            !Array.isArray(bookings)) {
+            throw new Error(
+                "A API deve retornar listas em /maquinas, /solicitacoes e /alocacoes."
+            );
+        }
+
+        A.receiveFromApi({
+            company: company && typeof company === "object" ? company : {},
+            machines,
+            requests,
+            bookings
+        });
+
+        return A.load();
+    }
+
+    // Só confirma sucesso após o servidor aceitar a operação.
+    // Caso a atualização da tela falhe depois disso, não pede novo envio.
+    async function concluirAcaoApi(acao, mensagem, botao = null) {
+        if (operacaoApiEmAndamento || botao?.disabled) return false;
+        operacaoApiEmAndamento = true;
+        if (botao) botao.disabled = true;
+
+        let salvoNoServidor = false;
+
+        try {
+            await acao();
+            salvoNoServidor = true;
+            await recarregarDadosApi();
+
+            closeModal();
+            render();
+            A.toast(mensagem);
+            return true;
+
+        } catch (erro) {
+            console.error("Falha na operação administrativa:", erro);
+
+            if (salvoNoServidor) {
+                closeModal();
+                A.toast(
+                    "O servidor aceitou a operação, mas o painel não conseguiu atualizar. " +
+                    "Recarregue a página antes de tentar novamente.",
+                    "error"
+                );
+            } else {
+                A.toast(
+                    erro.message || "Não foi possível salvar no servidor.",
+                    "error"
+                );
+            }
+
+            if (erro.status === 401 || erro.status === 403) {
+                apiAuthenticated = false;
+                A.clearApiState?.();
+                loginView();
+            }
+            return false;
+
+        } finally {
+            operacaoApiEmAndamento = false;
+            if (botao?.isConnected) botao.disabled = false;
+        }
+    }
     // Atalho para selecionar elementos do HTML
     const $ = (selector) => document.querySelector(selector);
 
@@ -121,6 +209,10 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
     */
 
     function canLogin() {
+        if (isApiMode()) {
+            return apiAuthenticated;
+        }
+
         return sessionStorage.getItem("alloc_demo_auth") === "1";
     }
 
@@ -264,7 +356,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                     : "Recusada";
 
         return `
-            <span class="request-status request-${status}">
+            <span class="request-status request-${A.safe(status)}">
                 ${label}
             </span>
         `;
@@ -299,7 +391,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         );
 
         const recent = [...d.requests]
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
             .slice(0, 5);
 
         const active = statusCount(d, "alocada");
@@ -743,7 +835,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                             <button
                                 class="btn btn-small btn-outline"
                                 data-action="edit-machine"
-                                data-id="${machine.id}"
+                                data-id="${A.safe(machine.id)}"
                             >
                                 ${A.ico("edit", 15)}
                                 Editar
@@ -752,7 +844,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                             <button
                                 class="btn btn-small btn-subtle"
                                 data-action="toggle-maintenance"
-                                data-id="${machine.id}"
+                                data-id="${A.safe(machine.id)}"
                             >
                                 Ajustar manutenção
                             </button>
@@ -886,7 +978,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
             })
 
             .sort((a, b) => {
-                return b.createdAt.localeCompare(a.createdAt);
+                return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
             });
 
         if (requests.length === 0) {
@@ -909,7 +1001,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                     <button
                         class="btn btn-primary btn-small"
                         data-action="approve-request"
-                        data-id="${request.id}"
+                        data-id="${A.safe(request.id)}"
                     >
                         ${A.ico("check", 16)}
                         Aprovar
@@ -918,7 +1010,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                     <button
                         class="btn btn-outline btn-small"
                         data-action="reject-request"
-                        data-id="${request.id}"
+                        data-id="${A.safe(request.id)}"
                     >
                         Recusar
                     </button>
@@ -961,7 +1053,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                         <div class="request-id">
                             Protocolo ${A.safe(request.id)}
                             •
-                            ${A.brDate(request.createdAt.slice(0, 10))}
+                            ${A.brDate(String(request.createdAt || "").slice(0, 10))}
                         </div>
 
                         <div class="request-fields">
@@ -1055,7 +1147,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                     <button
                         class="btn btn-small btn-outline"
                         data-action="edit-booking"
-                        data-id="${booking.id}"
+                        data-id="${A.safe(booking.id)}"
                     >
                         Editar
                     </button>
@@ -1063,7 +1155,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                     <button
                         class="btn btn-small btn-subtle"
                         data-action="end-booking"
-                        data-id="${booking.id}"
+                        data-id="${A.safe(booking.id)}"
                     >
                         Encerrar
                     </button>
@@ -1579,6 +1671,9 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
 
         // Eventos da tela Minha empresa
         if (current === "company") {
+            if (isApiMode()) {
+                document.querySelector(".demo-reset-panel")?.remove();
+            }
             wireCompany();
         }
 
@@ -1642,6 +1737,13 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                 return;
             }
 
+            if (isApiMode()) {
+                return concluirAcaoApi(
+                    () => api().endBooking(id),
+                    "Alocação encerrada no servidor."
+                );
+            }
+
             booking.status = "encerrada";
             booking.endedAt = new Date().toISOString();
 
@@ -1685,7 +1787,12 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
             if (!request || request.status !== "pendente") {
                 return;
             }
-
+            if (isApiMode()) {
+                return concluirAcaoApi(
+                    () => api().rejectRequest(id),
+                    "Solicitação recusada no servidor."
+                );
+            }
             request.status = "recusado";
             request.decidedAt = new Date().toISOString();
 
@@ -1705,6 +1812,14 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         */
 
         if (action === "reset-demo") {
+
+            if (isApiMode()) {
+                A.toast(
+                    "A restauração demonstrativa não está disponível no modo API.",
+                    "error"
+                );
+                return;
+            }
 
             const confirmed = confirm(
                 "Restaurar a demonstração? Pedidos e edições locais serão substituídos pelos dados de exemplo."
@@ -1782,6 +1897,11 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         const original = id
             ? d.machines.find((machine) => machine.id === id)
             : null;
+
+        if (id && !original) {
+            A.toast("Equipamento não encontrado.", "error");
+            return;
+        }
 
         const machine = original || {
             name: "",
@@ -2161,8 +2281,9 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                 return;
             }
 
-            // Impede reduzir capacidade abaixo das alocações
-            if (original) {
+            // No modo local verificamos alocações em memória.
+            // No modo API, cabe ao Backend impedir conflito de estoque.
+            if (original && !isApiMode()) {
 
                 const peak = A.peakBooked(
                     id,
@@ -2207,6 +2328,23 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                 maintenance: maintenanceQty === quantity
             };
 
+            if (isApiMode()) {
+                const payload = { ...next };
+                delete payload.id; // O servidor gera o ID do novo registro.
+                delete payload.maintenance; // É derivado de maintenanceQty.
+
+                return concluirAcaoApi(
+                    () => original
+                        ? api().updateMachine(id, payload)
+                        : api().createMachine(payload),
+                    original
+                        ? "Equipamento atualizado no servidor."
+                        : "Equipamento cadastrado no servidor.",
+                    event.currentTarget.querySelector('[type="submit"]')
+                );
+            }
+
+            // Só o modo demonstrativo modifica dados diretamente.
             if (original) {
                 Object.assign(original, next);
             } else {
@@ -2241,6 +2379,11 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         const original = id
             ? d.bookings.find((booking) => booking.id === id)
             : null;
+
+        if (id && !original) {
+            A.toast("Alocação não encontrada.", "error");
+            return;
+        }
 
         const booking = original || {
 
@@ -2415,6 +2558,14 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         // Mostra a disponibilidade
         function hint() {
 
+            if (isApiMode()) {
+                const field = $("#bookingAvailability");
+                field.textContent =
+                    "A disponibilidade será validada pelo servidor ao salvar.";
+                field.classList.remove("availability-error");
+                return;
+            }
+
             const form = new FormData(
                 $("#bookingForm")
             );
@@ -2489,6 +2640,7 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
 
             const invalidPeriod =
                 !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
+                !/^\d{4}-\d{2}-\d{2}$/.test(end) ||
                 end < start ||
                 (!original && start < A.dayISO());
 
@@ -2521,15 +2673,17 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                 return;
             }
 
-            const free = A.availableBetween(
-                machineId,
-                start,
-                end,
-                d,
-                id || null
-            );
+            const free = isApiMode()
+                ? null
+                : A.availableBetween(
+                    machineId,
+                    start,
+                    end,
+                    d,
+                    id || null
+                );
 
-            if (free < quantity) {
+            if (free !== null && free < quantity) {
 
                 A.toast(
                     `Quantidade indisponível: restam ${free} unidade(s) nesse período.`,
@@ -2562,6 +2716,28 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
                 createdAt: original?.createdAt ||
                     new Date().toISOString()
             };
+
+            if (isApiMode()) {
+                const payload = {
+                    machineId,
+                    customer,
+                    contact: next.contact,
+                    location,
+                    quantity,
+                    start,
+                    end
+                };
+
+                return concluirAcaoApi(
+                    () => original
+                        ? api().updateBooking(id, payload)
+                        : api().createBooking(payload),
+                    original
+                        ? "Alocação atualizada no servidor."
+                        : "Alocação cadastrada no servidor.",
+                    event.currentTarget.querySelector('[type="submit"]')
+                );
+            }
 
             if (original) {
                 Object.assign(original, next);
@@ -2787,12 +2963,14 @@ Sua solicitação ${request.id} para ${
             return;
         }
 
-        const available = A.availableBetween(
-            request.machineId,
-            request.start,
-            request.end,
-            d
-        );
+        const available = isApiMode()
+            ? null // Não exibir um estoque local como se fosse do servidor.
+            : A.availableBetween(
+                request.machineId,
+                request.start,
+                request.end,
+                d
+            );
 
         openModal(`
 
@@ -2836,7 +3014,9 @@ Sua solicitação ${request.id} para ${
 
                 <div>
                     <span>Livres no período</span>
-                    <b>${available} unidade(s)</b>
+                    <b>${available === null
+                        ? "Será validado pelo servidor"
+                        : `${available} unidade(s)`}</b>
                 </div>
 
                 <div>
@@ -2914,6 +3094,16 @@ Sua solicitação ${request.id} para ${
                 );
 
                 return;
+            }
+
+            if (isApiMode()) {
+                return concluirAcaoApi(
+                    () => api().approveRequest(id, { location }),
+                    "Solicitação aprovada no servidor. Agora notifique o cliente.",
+                    event.currentTarget.querySelector('[type="submit"]')
+                ).then(sucesso => {
+                    if (sucesso) notifyDialog(id);
+                });
             }
 
             // Recarrega os dados antes da aprovação
@@ -3151,8 +3341,8 @@ Sua solicitação ${request.id} para ${
                 return;
             }
 
-            // Atualiza o objeto da empresa
-            d.company = {
+            // Monta o objeto sem alterar o estado até que a API confirme.
+            const nextCompany = {
 
                 ...d.company,
 
@@ -3190,6 +3380,15 @@ Sua solicitação ${request.id} para ${
                 logo: modalLogo
             };
 
+            if (isApiMode()) {
+                return concluirAcaoApi(
+                    () => api().updateCompany(nextCompany),
+                    "Empresa atualizada no servidor.",
+                    event.currentTarget.querySelector('[type="submit"]')
+                );
+            }
+
+            d.company = nextCompany;
             if (A.write(d)) {
 
                 render();
@@ -3293,7 +3492,7 @@ Sua solicitação ${request.id} para ${
         ----------------------------
         */
 
-        $("#loginForm").addEventListener("submit", (event) => {
+        $("#loginForm").addEventListener("submit", async (event) => {
 
             event.preventDefault();
 
@@ -3301,9 +3500,38 @@ Sua solicitação ${request.id} para ${
                 event.currentTarget
             );
 
-            const email = form.get("email");
-            const password = form.get("password");
+            const email = String(form.get("email") || "").trim();
+            const password = String(form.get("password") || "");
 
+            if (isApiMode()) {
+                const botao = event.currentTarget.querySelector('[type="submit"]');
+                if (botao?.disabled) return;
+                if (botao) botao.disabled = true;
+
+                try {
+                    await api().login({ email, password });
+                    await recarregarDadosApi();
+
+                    apiAuthenticated = true;
+                    loginView();
+
+                    window.AllocProfile.carregarDaApi()
+                        .catch((erro) => console.warn("Perfil não carregado:", erro));
+
+                    A.toast("Login realizado com sucesso.");
+
+                } catch (erro) {
+                    apiAuthenticated = false;
+                    A.toast(
+                        erro.message || "Não foi possível entrar.",
+                        "error"
+                    );
+                } finally {
+                    if (botao?.isConnected) botao.disabled = false;
+                }
+
+                return;
+            }
             if (
                 email === "admin@alloclink.demo" &&
                 password === "demo123"
@@ -3335,8 +3563,26 @@ Sua solicitação ${request.id} para ${
         ----------------------------
         */
 
-        $("#logoutBtn").addEventListener("click", () => {
+        $("#logoutBtn").addEventListener("click", async () => {
+            if (isApiMode()) {
+                try {
+                    await api().logout();
 
+                    apiAuthenticated = false;
+                    A.clearApiState();
+                    $("#adminContent").replaceChildren();
+                    loginView();
+                    A.toast("Sessão encerrada.");
+
+                } catch (erro) {
+                    A.toast(
+                        erro.message || "Não foi possível encerrar a sessão.",
+                        "error"
+                    );
+                }
+
+                return;
+            }
             sessionStorage.removeItem(
                 "alloc_demo_auth"
             );
@@ -3425,7 +3671,7 @@ Sua solicitação ${request.id} para ${
 
         window.addEventListener("storage", (event) => {
 
-            if (event.key === "alloclink_app_demo_v1") {
+            if (!isApiMode() && event.key === "alloclink_app_demo_v1") {
                 location.reload();
             }
         });
@@ -3436,7 +3682,39 @@ Sua solicitação ${request.id} para ${
         ----------------------------
         */
 
-        loginView();
+        if (isApiMode()) {
+            // O modo API nunca usa a sessão e as credenciais de demonstração.
+            const demo = document.querySelector(".demo-pill");
+            if (demo) demo.textContent = "Conectado à API";
+            document.querySelectorAll(".demo-credentials, .login-disclaimer")
+                .forEach((element) => { element.hidden = true; });
+
+            // Não mostra o painel enquanto valida a sessão com o servidor.
+            $("#adminShell").hidden = true;
+            $("#loginLayer").hidden = true;
+
+            api().getSession()
+                .then(async (session) => {
+                    if (!session || session.authenticated === false ||
+                        session.autenticado === false) {
+                        throw new Error("Sessão não encontrada.");
+                    }
+
+                    await recarregarDadosApi();
+                    apiAuthenticated = true;
+                    loginView();
+                    window.AllocProfile.carregarDaApi()
+                        .catch((erro) => console.warn("Perfil não carregado:", erro));
+                })
+                .catch((erro) => {
+                    console.info("Sessão administrativa não restaurada:", erro.message);
+                    apiAuthenticated = false;
+                    A.clearApiState?.();
+                    loginView();
+                });
+        } else {
+            loginView();
+        }
     }
 
     // Executa após o HTML estar carregado

@@ -7,14 +7,27 @@
 
     // Importa as funções que core.js disponibiliza.
     const A = window.Alloc;
+    const isApiMode = () => window.AllocConfig?.mode === "api";
+
+    let remoteProfile = {
+        nome: "",
+        email: "",
+        telefone: ""
+    };
 
     // 1. Busca os dados do perfil.
     function carregarPerfil() {
+
+        if (isApiMode()) {
+            return { ...remoteProfile };
+        }
+
         const perfilPadrao = {
             nome: "",
             email: "",
             telefone: ""
         };
+
 
         try {
             const salvo = localStorage.getItem(STORAGE_KEY);
@@ -32,6 +45,28 @@
             console.error("Erro ao carregar perfil:", erro);
             return perfilPadrao;
         }
+    }
+
+    async function carregarDaApi() {
+        if (!isApiMode()) {
+            return carregarPerfil();
+        }
+
+        const resposta = await window.AllocApi.getProfile();
+
+        if (!resposta || typeof resposta !== "object") {
+            throw new Error("Perfil inválido recebido do servidor.");
+        }
+
+        remoteProfile = {
+            nome: String(resposta.nome || ""),
+            email: String(resposta.email || ""),
+            telefone: String(resposta.telefone || "")
+        };
+
+        atualizarMenu();
+
+        return { ...remoteProfile };
     }
 
     // 2. Atualiza o nome exibido no menu.
@@ -91,10 +126,10 @@
                 <h2>Informações pessoais</h2>
 
                 <p class="profile-settings-note">
-                    Os dados serão salvos localmente
-                    nesta etapa demonstrativa.
+                    ${isApiMode()
+                        ? "Informações do usuário autenticado."
+                        : "Os dados serão salvos localmente nesta demonstração."}
                 </p>
-
                 <form id="profileForm" class="form-grid">
 
                     <label class="field field-full">
@@ -161,7 +196,30 @@
 
         if (!formulario) return;
 
-        formulario.addEventListener("submit", function (event) {
+        const botao = formulario.querySelector(
+            'button[type="submit"]'
+        );
+
+        if (isApiMode()) {
+            botao.disabled = true;
+
+            carregarDaApi()
+                .then(perfil => {
+                    if (!formulario.isConnected) return;
+
+                    for (const campo of ["nome", "email", "telefone"]) {
+                        formulario.elements.namedItem(campo).value =
+                            perfil[campo];
+                    }
+
+                    botao.disabled = false;
+                })
+                .catch(erro => {
+                    A.toast(erro.message, "error");
+                });
+        }
+
+        formulario.addEventListener("submit", async function (event) {
 
             // Impede o recarregamento da página.
             event.preventDefault();
@@ -186,10 +244,15 @@
 
             try {
                 // Salva no navegador, por enquanto.
-                localStorage.setItem(
-                    STORAGE_KEY,
-                    JSON.stringify(perfil)
-                );
+                if (isApiMode()) {
+                    await window.AllocApi.updateProfile(perfil);
+                    await carregarDaApi();
+                } else {
+                    localStorage.setItem(
+                        STORAGE_KEY,
+                        JSON.stringify(perfil)
+                    );
+                }
 
                 // Atualiza o menu lateral.
                 atualizarMenu();
@@ -207,7 +270,8 @@
     window.AllocProfile = {
         render,
         wire,
-        atualizarMenu
+        atualizarMenu,
+        carregarDaApi
     };
 
 })();

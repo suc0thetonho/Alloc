@@ -10,7 +10,9 @@
 
     // Importa as funcionalidades do core.js
     const A = window.Alloc;
+    const isApiMode = () => window.AllocConfig?.mode === "api";
 
+    let availabilitySequence = 0;
     // Facilita a seleção de elementos HTML
     const $ = (selector) => document.querySelector(selector);
 
@@ -33,6 +35,63 @@
         "Nivelamento",
         "Operação geral"
     ];
+
+    // O Backend pode informar a quantidade livre hoje.
+    // Sem esse dado, não inventamos uma disponibilidade a partir de listas locais vazias.
+    function displayStatus(machine, state) {
+        const status = A.machineStatus(machine, state);
+
+        if (!isApiMode()) {
+            return { ...status, known: true };
+        }
+
+        const raw = machine.availableToday;
+        const hasToday = raw !== undefined && raw !== null && raw !== "" &&
+            Number.isInteger(Number(raw)) && Number(raw) >= 0;
+
+        if (!hasToday) {
+            return {
+                ...status,
+                known: false,
+                key: status.maint === status.total ? "manutencao" : "indefinido"
+            };
+        }
+
+        const free = Math.max(0, Math.min(
+            status.total - status.maint,
+            Number(raw)
+        ));
+        const rawUsed = machine.usedToday;
+        const used = rawUsed !== undefined && rawUsed !== null && rawUsed !== "" &&
+            Number.isInteger(Number(rawUsed)) && Number(rawUsed) >= 0
+            ? Number(rawUsed)
+            : Math.max(0, status.total - status.maint - free);
+
+        return {
+            ...status,
+            known: true,
+            free,
+            used,
+            key: status.maint === status.total
+                ? "manutencao"
+                : free > 0 ? "disponivel" : "alocada"
+        };
+    }
+
+    function parseAvailability(response) {
+        // Contrato esperado: { available: inteiro }.
+        const raw = response?.available;
+        if (raw === null || raw === undefined || raw === "") {
+            throw new Error("O servidor não informou a disponibilidade.");
+        }
+
+        const available = Number(raw);
+        if (!Number.isInteger(available) || available < 0) {
+            throw new Error("O servidor retornou uma disponibilidade inválida.");
+        }
+
+        return available;
+    }
 
     /*
     ========================================================
@@ -79,7 +138,7 @@
 
         return state.machines.filter((m) => {
 
-            const status = A.machineStatus(m, state).key;
+            const status = displayStatus(m, state).key;
 
             const category =
                 m.category || A.categoryFromType(m.type);
@@ -160,22 +219,18 @@
 
     function card(m, state) {
 
-        // Consulta a disponibilidade da máquina
-        const st = A.machineStatus(m, state);
-
-        // Verifica se todas as unidades estão em manutenção
+        // Só exibe disponibilidade de hoje se ela for conhecida.
+        const st = displayStatus(m, state);
         const unavailable = st.maint === st.total;
+        const statusUnknown = !st.known && !unavailable;
 
-        // Texto apresentado no card
-        const text = st.free > 0
-
-            ? `${st.free} disponível${st.free === 1 ? "" : "is"} agora`
-
-            : unavailable
-
-                ? "Em manutenção"
-
-                : "Sem unidades livres hoje";
+        const text = unavailable
+            ? "Em manutenção"
+            : statusUnknown
+                ? "Consulte a disponibilidade"
+                : st.free > 0
+                    ? `${st.free} disponível${st.free === 1 ? "" : "is"} agora`
+                    : "Sem unidades livres hoje";
 
         return `
             <article class="machine-compact-card">
@@ -493,14 +548,14 @@
 
         // Procura a máquina selecionada
         const m = state.machines.find(
-            (item) => item.id === id
+            (item) => String(item.id) === String(id)
         );
 
         if (!m) {
             return;
         }
 
-        const st = A.machineStatus(m, state);
+        const st = displayStatus(m, state);
 
         const unavailable = st.maint === st.total;
 
@@ -537,15 +592,13 @@
         ----------------------------------------------------
         */
 
-        const availabilityText = st.free > 0
-
-            ? `${st.free} unidade${st.free === 1 ? "" : "s"} livre${st.free === 1 ? "" : "s"} hoje`
-
-            : unavailable
-
-                ? "Todas as unidades estão em manutenção"
-
-                : "Todas as unidades estão em uso hoje";
+        const availabilityText = unavailable
+            ? "Todas as unidades estão em manutenção"
+            : !st.known
+                ? "Consulte a disponibilidade para o período desejado"
+                : st.free > 0
+                    ? `${st.free} unidade${st.free === 1 ? "" : "s"} livre${st.free === 1 ? "" : "s"} hoje`
+                    : "Todas as unidades estão em uso hoje";
 
         /*
         ----------------------------------------------------
@@ -604,8 +657,9 @@
                             </strong>
 
                             <small>
-                                Disponibilidade calculada para hoje;
-                                outra data pode ter uma situação diferente.
+                                ${st.known
+                                    ? "Disponibilidade de hoje; outras datas podem ter outra situação."
+                                    : "A disponibilidade será consultada ao escolher as datas."}
                             </small>
 
                         </div>
@@ -675,7 +729,7 @@
                     <p class="detail-count">
 
                         ${st.total} unidade(s) cadastrada(s)
-                        · ${st.used} em uso
+                        ${st.known ? `· ${st.used} em uso` : ""}
                         · ${st.maint} em manutenção
 
                     </p>
@@ -722,7 +776,7 @@
         const state = A.load();
 
         const m = state.machines.find(
-            (item) => item.id === id
+            (item) => String(item.id) === String(id)
         );
 
         // Verifica se a máquina possui capacidade operacional
@@ -737,7 +791,7 @@
         }
 
         // Registra a máquina selecionada
-        selectedMachine = id;
+        selectedMachine = String(id);
 
         // Limpa o formulário
         $("#requestForm").reset();
@@ -807,51 +861,55 @@
     ========================================================
     */
 
-    function updateAvailability() {
-
+    async function updateAvailability() {
+        // Impede que uma resposta antiga sobrescreva a consulta mais recente.
+        const sequence = ++availabilitySequence;
+        const machineId = selectedMachine;
         const start = $("#requestStart").value;
         const end = $("#requestEnd").value;
-
+        const quantity = Number($("#requestQty").value);
         const field = $("#requestAvailability");
 
-        // Verifica se o período foi preenchido corretamente
-        if (
-            !selectedMachine ||
-            !start ||
-            !end ||
-            end < start
-        ) {
-
-            field.textContent =
-                "Escolha um período válido para consultar a disponibilidade.";
-
+        if (!machineId || !start || !end || end < start ||
+            !Number.isInteger(quantity) || quantity < 1) {
+            field.textContent = "Informe datas e quantidade válidas.";
             field.classList.add("availability-error");
-
             return;
         }
 
-        // Consulta a quantidade livre no período
-        const free = A.availableBetween(
-            selectedMachine,
-            start,
-            end
-        );
+        let free;
 
-        const qty =
-            Number($("#requestQty").value) || 1;
+        if (isApiMode()) {
+            field.textContent = "Consultando disponibilidade...";
+            field.classList.remove("availability-error");
 
-        // Apresenta o resultado
-        field.textContent = free
+            try {
+                if (!window.AllocApi?.getAvailability) {
+                    throw new Error("Consulta de disponibilidade não configurada.");
+                }
 
-            ? `${free} unidade(s) disponível(is) nas datas escolhidas.`
+                const response = await window.AllocApi.getAvailability(
+                    machineId, start, end
+                );
 
-            : "Não há unidades disponíveis nesse período. Experimente outras datas.";
+                if (sequence !== availabilitySequence) return;
+                free = parseAvailability(response);
+            } catch (error) {
+                if (sequence !== availabilitySequence) return;
+                field.textContent = `Não foi possível consultar: ${error.message}`;
+                field.classList.add("availability-error");
+                return;
+            }
+        } else {
+            free = A.availableBetween(machineId, start, end);
+        }
 
-        // Destaca quando a quantidade solicitada é maior
-        field.classList.toggle(
-            "availability-error",
-            free < qty
-        );
+        if (sequence !== availabilitySequence) return;
+
+        field.textContent = free > 0
+            ? `${free} unidade(s) disponível(is) no período.`
+            : "Nenhuma unidade disponível nesse período.";
+        field.classList.toggle("availability-error", free < quantity);
     }
 
     /*
@@ -860,259 +918,161 @@
     ========================================================
     */
 
-    function onRequest(event) {
+    let requestSending = false;
 
-        // Impede o envio tradicional do formulário
+    async function onRequest(event) {
         event.preventDefault();
+        if (requestSending) return;
 
+        const form = event.currentTarget;
+        const data = new FormData(form);
         const state = A.load();
+        const machineId = String(selectedMachine ?? "");
 
-        // Captura as informações preenchidas
-        const f = new FormData(event.currentTarget);
-
-        const name = String(
-            f.get("name") || ""
-        ).trim();
-
-        const phone = String(
-            f.get("phone") || ""
-        ).trim();
-
-        const location = String(
-            f.get("location") || ""
-        ).trim();
-
-        const start = String(
-            f.get("start") || ""
+        const name = String(data.get("name") || "").trim();
+        const phone = String(data.get("phone") || "").trim();
+        const location = String(data.get("location") || "").trim();
+        const start = String(data.get("start") || "");
+        const end = String(data.get("end") || "");
+        const qty = Number(data.get("quantity"));
+        const digits = A.phoneDigits(phone);
+        const machine = state.machines.find(
+            (item) => String(item.id) === machineId
         );
-
-        const end = String(
-            f.get("end") || ""
-        );
-
-        /*
-        ----------------------------------------------------
-        VALIDAR NOME
-        ----------------------------------------------------
-        */
 
         if (name.length < 3) {
-
-            A.toast(
-                "Informe seu nome completo.",
-                "error"
-            );
-
+            A.toast("Informe seu nome completo.", "error");
             return;
         }
 
-        /*
-        ----------------------------------------------------
-        VALIDAR TELEFONE
-        ----------------------------------------------------
-        */
-
-        const digits = A.phoneDigits(phone);
-
-        if (
-            digits.length < 10 ||
-            digits.length > 13
-        ) {
-
-            A.toast(
-                "Informe um telefone válido com DDD.",
-                "error"
-            );
-
+        if (digits.length < 10 || digits.length > 13) {
+            A.toast("Informe um telefone válido com DDD.", "error");
             return;
         }
-
-        /*
-        ----------------------------------------------------
-        VALIDAR DATAS
-        ----------------------------------------------------
-        */
 
         if (!A.validDates(start, end)) {
-
-            A.toast(
-                "Escolha um período válido.",
-                "error"
-            );
-
+            A.toast("Escolha um período válido.", "error");
             return;
         }
 
-        /*
-        ----------------------------------------------------
-        VALIDAR MÁQUINA E QUANTIDADE
-        ----------------------------------------------------
-        */
-
-        const qty = Number(
-            f.get("quantity") || 1
-        );
-
-        const m = state.machines.find(
-            (item) => item.id === selectedMachine
-        );
-
-        if (!m || A.capacity(m) === 0) {
-
-            A.toast(
-                "Equipamento indisponível.",
-                "error"
-            );
-
+        if (!machine || A.capacity(machine) === 0) {
+            A.toast("Equipamento indisponível.", "error");
             return;
         }
 
-        if (
-            !Number.isInteger(qty) ||
-            qty < 1 ||
-            qty > A.machineQty(m)
-        ) {
-
-            A.toast(
-                "Quantidade inválida.",
-                "error"
-            );
-
+        if (!Number.isInteger(qty) || qty < 1 || qty > A.machineQty(machine)) {
+            A.toast("Quantidade inválida.", "error");
             return;
         }
 
-        /*
-        ----------------------------------------------------
-        CONFERIR DISPONIBILIDADE
-        ----------------------------------------------------
-        */
-
-        const free = A.availableBetween(
-            selectedMachine,
-            start,
-            end,
-            state
-        );
-
-        if (free < qty) {
-
-            A.toast(
-                `Existem somente ${free} unidade(s) livres nesse período.`,
-                "error"
-            );
-
-            updateAvailability();
-
-            return;
+        const button = form.querySelector('[type="submit"]');
+        const originalText = button?.textContent;
+        requestSending = true;
+        if (button) {
+            button.disabled = true;
+            button.textContent = "Enviando solicitação...";
         }
 
-        /*
-        ----------------------------------------------------
-        VERIFICAR SOLICITAÇÕES DUPLICADAS
-        ----------------------------------------------------
-        */
+        let request;
 
-        const duplicated = state.requests.some((r) => {
+        try {
+            if (isApiMode()) {
+                if (!window.AllocApi?.getAvailability || !window.AllocApi?.createRequest) {
+                    throw new Error("O serviço de solicitações ainda não foi configurado.");
+                }
 
-            return (
-                r.machineId === selectedMachine &&
-                A.phoneDigits(r.phone) === digits &&
-                r.start === start &&
-                r.end === end &&
-                r.quantity === qty &&
-                r.status === "pendente"
-            );
-        });
+                // A consulta ajuda o cliente; o servidor deve validar novamente
+                // o estoque ao salvar o pedido, evitando condições de corrida.
+                const availability = await window.AllocApi.getAvailability(
+                    machineId, start, end
+                );
+                const free = parseAvailability(availability);
 
-        if (duplicated) {
+                if (free < qty) {
+                    throw new Error(`Existem somente ${free} unidade(s) livres nesse período.`);
+                }
 
-            A.toast(
-                "Já existe uma solicitação pendente com esses dados.",
-                "error"
-            );
+                request = await window.AllocApi.createRequest({
+                    machineId,
+                    name,
+                    phone,
+                    location,
+                    start,
+                    end,
+                    quantity: qty
+                });
 
-            return;
+                if (!request || request.id === undefined || request.id === null || request.id === "") {
+                    throw new Error("A resposta do servidor não contém o protocolo da solicitação.");
+                }
+            } else {
+                const free = A.availableBetween(machineId, start, end, state);
+                if (free < qty) {
+                    throw new Error(`Existem somente ${free} unidade(s) livres nesse período.`);
+                }
+
+                const duplicate = state.requests.some((item) => (
+                    String(item.machineId) === machineId &&
+                    A.phoneDigits(item.phone) === digits &&
+                    item.start === start &&
+                    item.end === end &&
+                    Number(item.quantity) === qty &&
+                    item.status === "pendente"
+                ));
+
+                if (duplicate) {
+                    throw new Error("Já existe uma solicitação pendente com esses dados.");
+                }
+
+                request = {
+                    id: A.shortId("S"),
+                    machineId,
+                    name,
+                    phone,
+                    location,
+                    start,
+                    end,
+                    quantity: qty,
+                    status: "pendente",
+                    createdAt: new Date().toISOString()
+                };
+
+                state.requests.unshift(request);
+                if (!A.write(state)) {
+                    // Não apresentar confirmação quando a gravação falhar.
+                    state.requests.shift();
+                    return;
+                }
+            }
+
+            closeModal("#requestModal");
+            $("#successCode").textContent = String(request.id);
+
+            const message =
+                `Olá! Registrei uma solicitação pelo Alloc Link.\n` +
+                `Protocolo: ${request.id}\n` +
+                `Máquina: ${machine.name}\n` +
+                `Quantidade: ${qty} unidade(s)\n` +
+                `Período: ${A.brDate(start)} a ${A.brDate(end)}\n` +
+                `Nome: ${name}\n` +
+                `Aguardo a confirmação da empresa.`;
+
+            const link = A.waLink(state.company.whatsapp, message);
+            $("#whatsappLink").hidden = !link;
+            $("#whatsappMissing").hidden = !!link;
+            if (link) $("#whatsappLink").href = link;
+
+            openModal("#successModal");
+        } catch (error) {
+            A.toast(error.message || "Não foi possível enviar a solicitação.", "error");
+            if (!isApiMode()) updateAvailability();
+        } finally {
+            requestSending = false;
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         }
-
-        /*
-        ----------------------------------------------------
-        CRIAR OBJETO DA SOLICITAÇÃO
-        ----------------------------------------------------
-        */
-
-        const req = {
-
-            id: A.shortId("S"),
-
-            machineId: selectedMachine,
-
-            name,
-            phone,
-            location,
-            start,
-            end,
-
-            quantity: qty,
-
-            status: "pendente",
-
-            createdAt: new Date().toISOString()
-        };
-
-        /*
-        ----------------------------------------------------
-        SALVAR SOLICITAÇÃO
-        ----------------------------------------------------
-        */
-
-        state.requests.unshift(req);
-
-        if (!A.write(state)) {
-            return;
-        }
-
-        // Fecha o formulário
-        closeModal("#requestModal");
-
-        // Apresenta o protocolo ao cliente
-        $("#successCode").textContent = req.id;
-
-        /*
-        ----------------------------------------------------
-        PREPARAR MENSAGEM DO WHATSAPP
-        ----------------------------------------------------
-        */
-
-        const message =
-            `Olá! Registrei uma solicitação pelo Alloc Link.\n` +
-            `Protocolo: ${req.id}\n` +
-            `Máquina: ${m.name}\n` +
-            `Quantidade: ${qty} unidade(s)\n` +
-            `Período: ${A.brDate(start)} a ${A.brDate(end)}\n` +
-            `Nome: ${name}\n` +
-            `Aguardo a confirmação da empresa.`;
-
-        const link = A.waLink(
-            state.company.whatsapp,
-            message
-        );
-
-        /*
-        ----------------------------------------------------
-        CONFIGURAR BOTÃO DO WHATSAPP
-        ----------------------------------------------------
-        */
-
-        $("#whatsappLink").hidden = !link;
-
-        $("#whatsappMissing").hidden = !!link;
-
-        if (link) {
-            $("#whatsappLink").href = link;
-        }
-
-        // Exibe a confirmação da solicitação
-        openModal("#successModal");
     }
 
     /*
@@ -1763,9 +1723,7 @@
         */
 
         window.addEventListener("storage", (event) => {
-
-            if (event.key === "alloclink_app_demo_v1") {
-
+            if (!isApiMode() && event.key === "alloclink_app_demo_v1") {
                 location.reload();
             }
         });
@@ -1776,7 +1734,70 @@
         ====================================================
         */
 
-        render();
+        if (isApiMode()) {
+            loadCatalogFromApi();
+        } else {
+            render();
+        }
+    }
+
+    // Carrega dados remotos sem misturá-los com o localStorage.
+    // A API de máquinas deve retornar um array (ou { machines: [...] } / { data: [...] }).
+    async function loadCatalogFromApi() {
+        const rail = $("#machineCarousel");
+        rail.textContent = "Carregando equipamentos...";
+        $("#machinePrev").disabled = true;
+        $("#machineNext").disabled = true;
+
+        try {
+            if (!window.AllocApi?.getMachines || !A.receiveFromApi) {
+                throw new Error("Confira o carregamento de config.js, api.js e core.js.");
+            }
+
+            const response = await window.AllocApi.getMachines();
+            const machines = Array.isArray(response)
+                ? response
+                : Array.isArray(response?.machines)
+                    ? response.machines
+                    : Array.isArray(response?.data)
+                        ? response.data
+                        : null;
+
+            if (!machines) {
+                throw new Error("A API de máquinas deve retornar uma lista.");
+            }
+
+            let company = null;
+            if (typeof window.AllocApi.getPublicCompany === "function") {
+                try {
+                    const responseCompany = await window.AllocApi.getPublicCompany();
+                    company = responseCompany?.company || responseCompany?.data || responseCompany;
+                    if (!company || typeof company !== "object" || Array.isArray(company)) {
+                        company = null;
+                    }
+                } catch (error) {
+                    // Uma falha nas informações institucionais não bloqueia o catálogo.
+                    console.warn("Não foi possível carregar a empresa pública:", error);
+                }
+            }
+
+            A.receiveFromApi({
+                machines,
+                ...(company ? { company } : {})
+            });
+            render();
+        } catch (error) {
+            rail.innerHTML = `
+                <div class="vitrine-empty">
+                    <strong>Não foi possível carregar o catálogo</strong>
+                    <span>${A.safe(error.message || "Falha de conexão com o servidor.")}</span>
+                    <button type="button" class="btn btn-outline" id="retryCatalog">
+                        Tentar novamente
+                    </button>
+                </div>`;
+            rail.querySelector("#retryCatalog")?.addEventListener("click", loadCatalogFromApi);
+            A.toast("Não foi possível carregar os equipamentos.", "error");
+        }
     }
 
     /*
