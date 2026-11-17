@@ -248,6 +248,29 @@
         return true;
     }
 
+
+    function receiveFromApi(partialData) {
+
+        const current = load();
+
+        cache = normalize({
+            ...current,
+            ...partialData,
+
+            company: {
+                ...current.company,
+                ...(partialData.company || {})
+            }
+        });
+
+        window.dispatchEvent(
+            new Event("alloclink:change")
+        );
+
+        return cache;
+    }
+
+
     function reset() {
         cache = seed();
         write(cache);
@@ -920,6 +943,7 @@
     window.Alloc = {
         load,
         write,
+        receiveFromApi,
         reset,
         dayISO,
         brDate,
