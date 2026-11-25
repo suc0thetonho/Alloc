@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { query } from '../database/client';
+import { query, withTransaction } from '../database/client';
+import type { PoolClient } from 'pg';
 
 type AllocationRow = {
   id: string;
@@ -97,6 +98,49 @@ async function getMachineStock(machineId: string): Promise<MachineStockRow | und
   return result.rows[0];
 }
 
+async function getMachineStockForUpdate(client: PoolClient, machineId: string): Promise<MachineStockRow | undefined> {
+  const result = await client.query<MachineStockRow>(
+    `SELECT id::text, nome AS name, quantidade_total AS total_units,
+            quantidade_manutencao AS maintenance_units
+       FROM maquinas
+      WHERE id = $1 AND ativo = TRUE
+      FOR UPDATE`,
+    [machineId],
+  );
+  return result.rows[0];
+}
+
+async function getDailyAvailabilityForClient(client: PoolClient, machineId: string, startDate: string, endDate: string, excludeAllocationId?: string) {
+  const result = await client.query<{ day: string; occupied_units: number }>(
+    `WITH days AS (
+       SELECT generate_series($2::date, $3::date, INTERVAL '1 day')::date AS day
+     )
+     SELECT days.day::text,
+            COALESCE(SUM(a.quantidade), 0)::int AS occupied_units
+       FROM days
+       LEFT JOIN alocacoes a
+         ON a.maquina_id = $1
+        AND a.status = 'ativa'
+        AND a.id <> COALESCE($4::bigint, 0)
+        AND a.data_inicio <= days.day
+        AND a.data_fim >= days.day
+      GROUP BY days.day
+      ORDER BY days.day`,
+    [machineId, startDate, endDate, excludeAllocationId ?? null],
+  );
+  return result.rows;
+}
+
+function availabilityFromRows(machine: MachineStockRow, rows: Array<{ day: string; occupied_units: number }>, quantity: number) {
+  const maintenanceAvailable = Math.max(0, machine.total_units - machine.maintenance_units);
+  const days = rows.map((day) => ({
+    date: day.day,
+    occupiedUnits: Number(day.occupied_units),
+    availableUnits: Math.max(0, maintenanceAvailable - Number(day.occupied_units)),
+  }));
+  return { days, available: days.every((day) => day.availableUnits >= quantity) };
+}
+
 async function getDailyAvailability(machineId: string, startDate: string, endDate: string, excludeAllocationId?: string) {
   const result = await query<{ day: string; occupied_units: number }>(
     `WITH days AS (
@@ -122,17 +166,8 @@ async function checkAvailability(machineId: string, startDate: string, endDate: 
   const machine = await getMachineStock(machineId);
   if (!machine) return { machine: undefined, days: [], available: false };
   const days = await getDailyAvailability(machineId, startDate, endDate, excludeAllocationId);
-  const maintenanceAvailable = Math.max(0, machine.total_units - machine.maintenance_units);
-  const calendar = days.map((day) => ({
-    date: day.day,
-    occupiedUnits: Number(day.occupied_units),
-    availableUnits: Math.max(0, maintenanceAvailable - Number(day.occupied_units)),
-  }));
-  return {
-    machine,
-    days: calendar,
-    available: calendar.every((day) => day.availableUnits >= quantity),
-  };
+  const availability = availabilityFromRows(machine, days, quantity);
+  return { machine, ...availability };
 }
 
 export async function getMachineAvailabilityController(req: Request, res: Response): Promise<void> {
@@ -209,19 +244,25 @@ export async function createAllocationController(req: Request, res: Response): P
   const validationError = validatePayload(body, false);
   if (validationError) return errorResponse(res, 422, 'INVALID_ALLOCATION', validationError);
   const values = normalizedValues(body);
-  const availability = await checkAvailability(String(values.machineId), String(values.startDate), String(values.endDate), Number(values.quantity));
-  if (!availability.machine) return errorResponse(res, 404, 'MACHINE_NOT_FOUND', 'Máquina não encontrada.');
-  if (!availability.available) return errorResponse(res, 409, 'INSUFFICIENT_STOCK', 'Não há unidades livres para todo o período informado.');
-
-  const result = await query<AllocationRow>(
-    `INSERT INTO alocacoes (maquina_id, nome_cliente, local_servico, data_inicio, data_fim, quantidade)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id::text, maquina_id::text AS machine_id, nome_cliente AS customer_name,
-               local_servico AS location, data_inicio::text AS start_date,
-               data_fim::text AS end_date, quantidade AS quantity, status`,
-    [values.machineId, values.customerName, values.location, values.startDate, values.endDate, values.quantity],
-  );
-  res.status(201).json({ success: true, data: allocationData(result.rows[0]) });
+  const result = await withTransaction(async (client) => {
+    const machine = await getMachineStockForUpdate(client, String(values.machineId));
+    if (!machine) return { kind: 'machine-not-found' as const };
+    const rows = await getDailyAvailabilityForClient(client, String(values.machineId), String(values.startDate), String(values.endDate));
+    const availability = availabilityFromRows(machine, rows, Number(values.quantity));
+    if (!availability.available) return { kind: 'insufficient-stock' as const };
+    const insertResult = await client.query<AllocationRow>(
+      `INSERT INTO alocacoes (maquina_id, nome_cliente, local_servico, data_inicio, data_fim, quantidade)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id::text, maquina_id::text AS machine_id, nome_cliente AS customer_name,
+                 local_servico AS location, data_inicio::text AS start_date,
+                 data_fim::text AS end_date, quantidade AS quantity, status`,
+      [values.machineId, values.customerName, values.location, values.startDate, values.endDate, values.quantity],
+    );
+    return { kind: 'created' as const, allocation: insertResult.rows[0] };
+  });
+  if (result.kind === 'machine-not-found') return errorResponse(res, 404, 'MACHINE_NOT_FOUND', 'Máquina não encontrada.');
+  if (result.kind === 'insufficient-stock') return errorResponse(res, 409, 'INSUFFICIENT_STOCK', 'Não há unidades livres para todo o período informado.');
+  res.status(201).json({ success: true, data: allocationData(result.allocation) });
 }
 
 export async function updateAllocationController(req: Request, res: Response): Promise<void> {

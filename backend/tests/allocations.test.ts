@@ -1,15 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app';
-import { query } from '../src/database/client';
+import { query, withTransaction } from '../src/database/client';
 import { createAdminToken } from '../src/auth/token';
 
-vi.mock('../src/database/client', () => ({ query: vi.fn() }));
+vi.mock('../src/database/client', () => ({ query: vi.fn(), withTransaction: vi.fn() }));
 
 const mockedQuery = vi.mocked(query);
+const mockedWithTransaction = vi.mocked(withTransaction);
 const adminToken = createAdminToken({ id: '1', email: 'admin@alloc.local' });
 
-beforeEach(() => mockedQuery.mockReset());
+beforeEach(() => {
+  mockedQuery.mockReset();
+  mockedWithTransaction.mockReset();
+  mockedWithTransaction.mockImplementation(async (callback) => callback({ query: mockedQuery } as never));
+});
 
 describe('Allocations API', () => {
   it('calcula a disponibilidade diária com intervalo inclusivo e manutenção', async () => {
@@ -61,6 +66,8 @@ describe('Allocations API', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.data).toEqual(expect.objectContaining({ id: '8', machineId: '1', quantity: 1, status: 'ativa' }));
+    expect(mockedWithTransaction).toHaveBeenCalledTimes(1);
+    expect(mockedQuery.mock.calls[0][0]).toContain('FOR UPDATE');
   });
 
   it('valida intervalo e quantidade antes de consultar o banco', async () => {
