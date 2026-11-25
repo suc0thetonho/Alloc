@@ -30,7 +30,7 @@ Solicitações **pendentes** não ocupam máquinas; apenas alocações **ativas*
 ## Fora desta primeira versão
 
 - `usuarios` e autenticação segura: devem ser adicionados com o Backend (não armazene senhas em texto puro);
-- tabela `parceiros` com cadastro completo: por enquanto o nome do proprietário fica em `maquinas.nome_parceiro`;
+- tabela `parceiros` com cadastro completo: por enquanto o nome e o contato administrativo do proprietário ficam em `maquinas.nome_parceiro` e `maquinas.contato_parceiro`;
 - controle individual por número de série/chassi;
 - multiempresa simultânea e isolamento entre clientes;
 - integração real com WhatsApp e envio automático de mensagens.

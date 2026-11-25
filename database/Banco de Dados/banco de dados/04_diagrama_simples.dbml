@@ -28,6 +28,7 @@ Table maquinas {
   imagem_url text
   origem varchar(12) [not null]
   nome_parceiro varchar(120)
+  contato_parceiro varchar(255)
   quantidade_total integer [not null]
   quantidade_manutencao integer [not null]
   ativo boolean [not null]
