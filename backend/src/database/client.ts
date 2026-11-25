@@ -1,4 +1,4 @@
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { env } from '../config/env';
 
 let pool: Pool | undefined;
@@ -21,6 +21,21 @@ export function query<T extends QueryResultRow = QueryResultRow>(
   values?: unknown[],
 ): Promise<QueryResult<T>> {
   return getDatabasePool().query<T>(text, values);
+}
+
+export async function withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getDatabasePool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function checkDatabaseConnection(): Promise<void> {
