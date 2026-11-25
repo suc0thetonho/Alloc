@@ -16,6 +16,7 @@ type MachineRow = {
   image_url: string | null;
   origin: 'propria' | 'terceiros';
   partner_name: string | null;
+  partner_contact: string | null;
   total_units: number;
   maintenance_units: number;
   available_units: number;
@@ -33,19 +34,21 @@ type MachinePayload = {
   origin?: unknown;
   originType?: unknown;
   partnerName?: unknown;
+  partnerContact?: unknown;
   totalUnits?: unknown;
   maintenanceUnits?: unknown;
 };
 
 const MACHINE_FIELDS = new Set([
   'name', 'type', 'brand', 'model', 'purpose', 'description', 'imageUrl',
-  'origin', 'originType', 'partnerName', 'totalUnits', 'maintenanceUnits',
+  'origin', 'originType', 'partnerName', 'partnerContact', 'totalUnits', 'maintenanceUnits',
 ]);
 
 const MACHINE_SELECT = `
   SELECT id::text, nome AS name, categoria AS type, marca AS brand,
          modelo AS model, finalidade AS purpose, descricao AS description,
          imagem_url, origem AS origin, nome_parceiro AS partner_name,
+         contato_parceiro AS partner_contact,
          quantidade_total AS total_units,
          quantidade_manutencao AS maintenance_units,
          quantidade_total - quantidade_manutencao AS available_units,
@@ -57,7 +60,7 @@ function positiveInteger(value: unknown, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function machineData(machine: MachineRow) {
+function machineData(machine: MachineRow, includeAdminFields = false) {
   return {
     id: machine.id,
     name: machine.name,
@@ -73,6 +76,7 @@ function machineData(machine: MachineRow) {
     maintenanceUnits: machine.maintenance_units,
     availableUnits: machine.available_units,
     availableNow: machine.available_units > 0,
+    ...(includeAdminFields ? { partnerContact: machine.partner_contact } : {}),
     ...(machine.ativo === undefined ? {} : { active: machine.ativo }),
   };
 }
@@ -108,12 +112,13 @@ function validateMachinePayload(body: MachinePayload, partial: boolean): string 
   if ('description' in body && !validOptionalText(body.description, 2000)) return 'A descrição deve ter no máximo 2000 caracteres.';
   if ('imageUrl' in body && !validOptionalText(body.imageUrl, 2048)) return 'A imagem deve ter no máximo 2048 caracteres.';
 
+  if ('partnerContact' in body && !validOptionalText(body.partnerContact, 255)) return 'partnerContact deve ter no máximo 255 caracteres.';
   for (const field of ['totalUnits', 'maintenanceUnits'] as const) {
     if (field in body && (!Number.isInteger(body[field]) || Number(body[field]) < 0)) {
       return `${field} deve ser um número inteiro não negativo.`;
     }
   }
-  if ((!partial || 'totalUnits' in body) && (!Number.isInteger(body.totalUnits) || Number(body.totalUnits) <= 0)) return 'totalUnits deve ser um número inteiro maior que zero.';
+  if ((!partial || 'totalUnits' in body) && (!Number.isInteger(body.totalUnits) || Number(body.totalUnits) < 0)) return 'totalUnits deve ser um número inteiro não negativo.';
   if (!partial && body.maintenanceUnits === undefined) body.maintenanceUnits = 0;
   if (body.totalUnits !== undefined && body.maintenanceUnits !== undefined && Number(body.maintenanceUnits) > Number(body.totalUnits)) {
     return 'maintenanceUnits não pode ser maior que totalUnits.';
@@ -124,8 +129,8 @@ function validateMachinePayload(body: MachinePayload, partial: boolean): string 
     return 'origin deve ser propria ou terceiros (originType aceita OWN ou PARTNER).';
   }
   const normalizedOrigin = origin === 'OWN' ? 'propria' : origin === 'PARTNER' ? 'terceiros' : origin ?? 'propria';
-  if (normalizedOrigin === 'terceiros' && (!validText(body.partnerName, 120))) return 'partnerName é obrigatório para máquinas de terceiros.';
-  if (normalizedOrigin === 'propria' && body.partnerName !== undefined && body.partnerName !== null && String(body.partnerName).trim() !== '') return 'partnerName deve ficar vazio para máquinas próprias.';
+  if (normalizedOrigin === 'terceiros' && (!validText(body.partnerName, 120) || !validText(body.partnerContact, 255))) return 'partnerName e partnerContact são obrigatórios para máquinas de terceiros.';
+  if (normalizedOrigin === 'propria' && [body.partnerName, body.partnerContact].some((value) => value !== undefined && value !== null && String(value).trim() !== '')) return 'Os dados do parceiro devem ficar vazios para máquinas próprias.';
   return null;
 }
 
@@ -141,6 +146,7 @@ function normalizedMachineValues(body: MachinePayload) {
     imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl.trim() : body.imageUrl ?? null,
     origin: origin === 'OWN' ? 'propria' : origin === 'PARTNER' ? 'terceiros' : origin ?? 'propria',
     partnerName: typeof body.partnerName === 'string' ? body.partnerName.trim() : body.partnerName ?? null,
+    partnerContact: typeof body.partnerContact === 'string' ? body.partnerContact.trim() : body.partnerContact ?? null,
     totalUnits: body.totalUnits ?? 1,
     maintenanceUnits: body.maintenanceUnits ?? 0,
   };
@@ -176,6 +182,7 @@ export async function listMachinesController(req: Request, res: Response): Promi
     `SELECT id::text, nome AS name, categoria AS type, marca AS brand,
             modelo AS model, finalidade AS purpose, descricao AS description,
             imagem_url, origem AS origin, nome_parceiro AS partner_name,
+            contato_parceiro AS partner_contact,
             quantidade_total AS total_units,
             quantidade_manutencao AS maintenance_units,
             quantidade_total - quantidade_manutencao AS available_units
@@ -186,7 +193,7 @@ export async function listMachinesController(req: Request, res: Response): Promi
     dataValues,
   );
 
-  const data = machinesResult.rows.map(machineData);
+  const data = machinesResult.rows.map((machine) => machineData(machine));
 
   res.status(200).json({
     success: true,
@@ -210,7 +217,7 @@ export async function getMachineController(req: Request, res: Response): Promise
 
 export async function listAdminMachinesController(_req: Request, res: Response): Promise<void> {
   const result = await query<MachineRow>(`${MACHINE_SELECT} ORDER BY id`);
-  res.status(200).json({ success: true, data: result.rows.map(machineData), meta: { total: result.rows.length } });
+  res.status(200).json({ success: true, data: result.rows.map((machine) => machineData(machine, true)), meta: { total: result.rows.length } });
 }
 
 export async function getAdminMachineController(req: Request, res: Response): Promise<void> {
@@ -230,20 +237,20 @@ export async function createMachineController(req: Request, res: Response): Prom
   const result = await query<MachineRow>(
     `INSERT INTO maquinas
       (empresa_id, nome, categoria, marca, modelo, finalidade, descricao, imagem_url,
-       origem, nome_parceiro, quantidade_total, quantidade_manutencao)
-     SELECT id, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+       origem, nome_parceiro, contato_parceiro, quantidade_total, quantidade_manutencao)
+     SELECT id, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
        FROM empresas ORDER BY id LIMIT 1
      RETURNING id::text, nome AS name, categoria AS type, marca AS brand, modelo AS model,
                finalidade AS purpose, descricao AS description, imagem_url,
-               origem AS origin, nome_parceiro AS partner_name,
+               origem AS origin, nome_parceiro AS partner_name, contato_parceiro AS partner_contact,
                quantidade_total AS total_units, quantidade_manutencao AS maintenance_units,
                quantidade_total - quantidade_manutencao AS available_units, ativo`,
     [values.name, values.type, values.brand, values.model, values.purpose, values.description,
-      values.imageUrl, values.origin, values.partnerName, values.totalUnits, values.maintenanceUnits],
+      values.imageUrl, values.origin, values.partnerName, values.partnerContact, values.totalUnits, values.maintenanceUnits],
   );
   const machine = result.rows[0];
   if (!machine) return errorResponse(res, 404, 'COMPANY_NOT_CONFIGURED', 'Nenhuma empresa está configurada para receber máquinas.');
-  res.status(201).json({ success: true, data: machineData(machine) });
+  res.status(201).json({ success: true, data: machineData(machine, true) });
 }
 
 export async function updateMachineController(req: Request, res: Response): Promise<void> {
@@ -255,7 +262,7 @@ export async function updateMachineController(req: Request, res: Response): Prom
   const values = normalizedMachineValues(body);
   const columnMap: Record<string, string> = {
     name: 'nome', type: 'categoria', brand: 'marca', model: 'modelo', purpose: 'finalidade',
-    description: 'descricao', imageUrl: 'imagem_url', origin: 'origem', partnerName: 'nome_parceiro',
+    description: 'descricao', imageUrl: 'imagem_url', origin: 'origem', partnerName: 'nome_parceiro', partnerContact: 'contato_parceiro',
     totalUnits: 'quantidade_total', maintenanceUnits: 'quantidade_manutencao',
   };
   const fields = Object.keys(body).filter((field) => field !== 'originType');
@@ -266,14 +273,14 @@ export async function updateMachineController(req: Request, res: Response): Prom
     `UPDATE maquinas SET ${setClause} WHERE id = $${updateValues.length + 1}
      RETURNING id::text, nome AS name, categoria AS type, marca AS brand, modelo AS model,
                finalidade AS purpose, descricao AS description, imagem_url,
-               origem AS origin, nome_parceiro AS partner_name,
+               origem AS origin, nome_parceiro AS partner_name, contato_parceiro AS partner_contact,
                quantidade_total AS total_units, quantidade_manutencao AS maintenance_units,
                quantidade_total - quantidade_manutencao AS available_units, ativo`,
     [...updateValues, id],
   );
   const machine = result.rows[0];
   if (!machine) return errorResponse(res, 404, 'MACHINE_NOT_FOUND', 'Máquina não encontrada.');
-  res.status(200).json({ success: true, data: machineData(machine) });
+  res.status(200).json({ success: true, data: machineData(machine, true) });
 }
 
 export async function deleteMachineController(req: Request, res: Response): Promise<void> {
