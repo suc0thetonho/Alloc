@@ -45,18 +45,20 @@ CREATE TABLE maquinas (
     imagem_url TEXT,
     origem VARCHAR(12) NOT NULL DEFAULT 'propria',
     nome_parceiro VARCHAR(120),
+    contato_parceiro VARCHAR(255),
     quantidade_total INTEGER NOT NULL DEFAULT 1,
     quantidade_manutencao INTEGER NOT NULL DEFAULT 0,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT ck_maquinas_qtd CHECK (
-       quantidade_total > 0
+       quantidade_total >= 0
        AND quantidade_manutencao >= 0
        AND quantidade_manutencao <= quantidade_total
     ),
     CONSTRAINT ck_maquinas_origem CHECK (
-        (origem = 'propria' AND nome_parceiro IS NULL) OR
-        (origem = 'terceiros' AND NULLIF(TRIM(nome_parceiro), '') IS NOT NULL)
+        (origem = 'propria' AND nome_parceiro IS NULL AND contato_parceiro IS NULL) OR
+        (origem = 'terceiros' AND NULLIF(TRIM(nome_parceiro), '') IS NOT NULL
+         AND NULLIF(TRIM(contato_parceiro), '') IS NOT NULL)
     )
 );
 

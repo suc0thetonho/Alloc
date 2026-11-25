@@ -10,7 +10,7 @@ VALUES ('ATC de Sales (DEMONSTRACAO)', 'Locacao de equipamentos para obras e ter
 
 INSERT INTO maquinas
   (empresa_id, nome, categoria, marca, modelo, finalidade, descricao, imagem_url,
-   origem, nome_parceiro, quantidade_total, quantidade_manutencao)
+   origem, nome_parceiro, contato_parceiro, quantidade_total, quantidade_manutencao)
 VALUES
   ((SELECT id FROM empresas ORDER BY id LIMIT 1),
    'Retroescavadeira', 'Escavacao', 'JCB', '3CX',
@@ -26,7 +26,7 @@ VALUES
    'Pa Carregadeira', 'Carga e movimentacao', 'CASE', '621E',
    'Carregar caminhoes e movimentar materiais na obra.',
    'Equipamento parceiro de demonstracao.',
-   'assets/pa-carregadeira.svg', 'terceiros', 'Parceiro ficticio', 1, 0),
+   'assets/pa-carregadeira.svg', 'terceiros', 'Parceiro ficticio', '(87) 98888-0000', 1, 0),
   ((SELECT id FROM empresas ORDER BY id LIMIT 1),
    'Motoniveladora', 'Nivelamento', 'Komatsu', 'GD555',
    'Nivelar o solo e realizar acabamento de estradas.',
