@@ -3299,14 +3299,26 @@ body[data-admin=true] {
   overflow: hidden
 }
 
+/* Corrige a rolagem do modal administrativo */
+.modal-card {
+    position: relative;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+
+
 .hero-float::after,
 .catalog-carousel-shell::after,
 .step-card::after,
 .about-panel::after,
 .panel::after,
 .admin-machine-card::after,
-.company-preview-card::after,
-.modal-card::after {
+.company-preview-card::after {
   content: "";
   position: absolute;
   inset: 0;

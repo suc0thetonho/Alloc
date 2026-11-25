@@ -103,7 +103,22 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
     const $ = (selector) => document.querySelector(selector);
 
     // Página administrativa atualmente selecionada
-    let current = "dashboard";
+    // Páginas disponíveis no painel
+    const validViews = new Set([
+        "dashboard",
+        "machines",
+        "requests",
+        "bookings",
+        "profile",
+        "company"
+    ]);
+
+// Identifica a página solicitada pela URL
+const initialView = location.hash.replace("#", "");
+
+let current = validViews.has(initialView)
+    ? initialView
+    : "dashboard";
 
     // Logomarca em edição
     let modalLogo = null;
@@ -231,7 +246,16 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
 
     function showPage(view) {
 
+        if (!validViews.has(view)) {
+            view = "dashboard";
+        }
+
         current = view;
+
+        // Mantém a URL sincronizada com a página aberta.
+        if (location.hash !== `#${view}`) {
+            history.replaceState(null, "", `#${view}`);
+        }
 
         $("#currentSection").textContent = "Administração";
         $("#currentTitle").textContent = labels[view];
@@ -2208,13 +2232,35 @@ ALLOC LINK — PAINEL ADMINISTRATIVO
         `);
 
         // Exibe os dados do proprietário quando necessário
-        $("#originSelect").addEventListener("change", (event) => {
+        const originSelect = $("#originSelect");
+        const partnerFields = $("#partnerFields");
 
-            $("#partnerFields").hidden =
-                event.target.value !== "terceiros";
+        const partnerInput = partnerFields.querySelector(
+            '[name="partner"]'
+        );
 
-        });
+        function atualizarPropriedade() {
 
+            const isThirdParty =
+                originSelect.value === "terceiros";
+
+            // Mostra ou esconde os campos do proprietário.
+            partnerFields.hidden = !isThirdParty;
+
+            // Torna o proprietário obrigatório para terceiros.
+            if (partnerInput) {
+                partnerInput.required = isThirdParty;
+            }
+        }
+
+        // Detecta quando o usuário altera a propriedade.
+        originSelect.addEventListener(
+            "change",
+            atualizarPropriedade
+        );
+
+        // Configura corretamente ao abrir o formulário.
+        atualizarPropriedade();
         // Salva o formulário
         $("#machineForm").addEventListener("submit", (event) => {
 
